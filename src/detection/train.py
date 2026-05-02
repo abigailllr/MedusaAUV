@@ -6,15 +6,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
 from tensorflow.keras.applications import MobileNetV2
-from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
+from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout, RandomFlip, RandomRotation, RandomZoom, RandomBrightness
 from tensorflow.keras.models import Model
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn.metrics import classification_report, confusion_matrix
 import fiftyone.zoo as foz
 
 BASE = "/content/dataset"
 IMG_SIZE = 224
 BATCH_SIZE = 32
-EPOCHS = 20
+EPOCHS = 40
 THRESHOLD = 0.7
 SPLITS = ["train", "val", "test"]
 CLASSES = ["jellyfish", "no_jellyfish"]
@@ -26,15 +27,15 @@ def download_dataset():
         split="train",
         label_types=["classifications"],
         classes=["Jellyfish"],
-        max_samples=200,
+        max_samples=500,
         dataset_name="jellyfish_pos"
     )
     negative = foz.load_zoo_dataset(
         "open-images-v7",
         split="train",
         label_types=["classifications"],
-        classes=["Fish", "Coral", "Marine invertebrates"],
-        max_samples=200,
+        classes=["Person", "Car", "Tree", "Building", "Dog", "Cat", "Chair", "Flower"],
+        max_samples=500,
         dataset_name="jellyfish_neg"
     )
     return jellyfish, negative
@@ -65,10 +66,20 @@ def copy_samples(dataset, class_name, ratios=(0.7, 0.15, 0.15)):
 def load_datasets():
     normalize = tf.keras.layers.Rescaling(1.0 / 255)
 
+    augment = tf.keras.Sequential([
+        RandomFlip("horizontal_and_vertical"),
+        RandomRotation(0.2),
+        RandomZoom(0.2),
+        RandomBrightness(0.2),
+    ])
+
+    def prep_train(ds):
+        return ds.map(lambda x, y: (normalize(augment(x, training=True)), y))
+
     def prep(ds):
         return ds.map(lambda x, y: (normalize(x), y))
 
-    train_ds = prep(tf.keras.utils.image_dataset_from_directory(
+    train_ds = prep_train(tf.keras.utils.image_dataset_from_directory(
         f"{BASE}/train", image_size=(IMG_SIZE, IMG_SIZE), batch_size=BATCH_SIZE
     ))
     val_ds = prep(tf.keras.utils.image_dataset_from_directory(
@@ -84,12 +95,27 @@ def build_model():
     base = MobileNetV2(weights="imagenet", include_top=False,
                        input_shape=(IMG_SIZE, IMG_SIZE, 3))
     base.trainable = False
+
     x = GlobalAveragePooling2D()(base.output)
-    x = Dropout(0.3)(x)
+    x = Dropout(0.5)(x)
     x = Dense(128, activation="relu")(x)
+    x = Dropout(0.3)(x)
     output = Dense(1, activation="sigmoid")(x)
+
     model = Model(inputs=base.input, outputs=output)
     model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+    return model
+
+
+def fine_tune(model):
+    model.layers[0].trainable = True
+    for layer in model.layers[0].layers[:-30]:
+        layer.trainable = False
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(1e-5),
+        loss="binary_crossentropy",
+        metrics=["accuracy"]
+    )
     return model
 
 
@@ -114,18 +140,25 @@ def evaluate(model, test_ds):
     plt.show()
 
 
-def plot_history(history):
+def plot_history(histories):
     plt.figure(figsize=(12, 4))
+    acc = histories[0].history["accuracy"] + histories[1].history["accuracy"]
+    val_acc = histories[0].history["val_accuracy"] + histories[1].history["val_accuracy"]
+    loss = histories[0].history["loss"] + histories[1].history["loss"]
+    val_loss = histories[0].history["val_loss"] + histories[1].history["val_loss"]
+
     plt.subplot(1, 2, 1)
-    plt.plot(history.history["accuracy"], label="Train")
-    plt.plot(history.history["val_accuracy"], label="Val")
+    plt.plot(acc, label="Train")
+    plt.plot(val_acc, label="Val")
     plt.title("Accuracy")
     plt.legend()
+
     plt.subplot(1, 2, 2)
-    plt.plot(history.history["loss"], label="Train")
-    plt.plot(history.history["val_loss"], label="Val")
+    plt.plot(loss, label="Train")
+    plt.plot(val_loss, label="Val")
     plt.title("Loss")
     plt.legend()
+
     plt.tight_layout()
     plt.savefig("training_curves.png")
     plt.show()
@@ -153,8 +186,19 @@ if __name__ == "__main__":
 
     train_ds, val_ds, test_ds = load_datasets()
     model = build_model()
-    history = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS)
+
+    early_stop = EarlyStopping(monitor="val_accuracy", patience=5, restore_best_weights=True)
+    checkpoint = ModelCheckpoint("best_model.keras", monitor="val_accuracy", save_best_only=True)
+
+    print("\n--- Phase 1: Transfer Learning ---")
+    h1 = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS,
+                   callbacks=[early_stop, checkpoint])
+
+    print("\n--- Phase 2: Fine-tuning ---")
+    model = fine_tune(model)
+    h2 = model.fit(train_ds, validation_data=val_ds, epochs=20,
+                   callbacks=[early_stop, checkpoint])
 
     evaluate(model, test_ds)
-    plot_history(history)
+    plot_history([h1, h2])
     export_tflite(model)
