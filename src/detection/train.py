@@ -108,8 +108,9 @@ def build_model():
 
 
 def fine_tune(model):
-    model.layers[0].trainable = True
-    for layer in model.layers[0].layers[:-30]:
+    base = next(l for l in model.layers if isinstance(l, tf.keras.Model))
+    base.trainable = True
+    for layer in base.layers[:-30]:
         layer.trainable = False
     model.compile(
         optimizer=tf.keras.optimizers.Adam(1e-5),
