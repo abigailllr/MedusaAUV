@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+*.egg-info/
+models/*.tflite
+models/*.h5
+models/*.pt
+data/train/
+data/val/
+data/test/
+.DS_Store
+*.log
