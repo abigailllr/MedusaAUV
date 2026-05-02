@@ -108,7 +108,7 @@ def build_model():
 
 
 def fine_tune(model):
-    base = next(l for l in model.layers if isinstance(l, tf.keras.Model))
+    base = model.get_layer("mobilenetv2_1.00_224")
     base.trainable = True
     for layer in base.layers[:-30]:
         layer.trainable = False
