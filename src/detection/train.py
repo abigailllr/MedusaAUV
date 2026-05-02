@@ -108,9 +108,12 @@ def build_model():
 
 
 def fine_tune(model):
-    base = model.get_layer("mobilenetv2_1.00_224")
-    base.trainable = True
-    for layer in base.layers[:-30]:
+    for layer in model.layers:
+        if isinstance(layer, tf.keras.layers.BatchNormalization):
+            layer.trainable = False
+        else:
+            layer.trainable = True
+    for layer in model.layers[:-30]:
         layer.trainable = False
     model.compile(
         optimizer=tf.keras.optimizers.Adam(1e-5),
