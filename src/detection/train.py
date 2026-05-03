@@ -54,7 +54,7 @@ def download_dataset():
         "open-images-v7",
         split="train",
         label_types=["classifications"],
-        classes=["Person", "Car", "Tree", "Building", "Dog", "Cat", "Chair", "Flower"],
+        classes=["Fish", "Marine invertebrates", "Plastic bag", "Sea turtle", "Squid", "Starfish", "Crab"],
         max_samples=500,
         dataset_name="jellyfish_neg"
     )
