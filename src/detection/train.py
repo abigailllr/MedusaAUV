@@ -2,9 +2,8 @@ import subprocess
 import sys
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
-    "fiftyone", "wandb", "scikit-learn", "seaborn", "pyyaml"])
-subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
-    "protobuf==3.20.3"])
+    "fiftyone", "wandb", "scikit-learn", "seaborn", "pyyaml",
+    "protobuf==4.25.3"])
 
 import os
 import shutil
@@ -186,7 +185,7 @@ def export_tflite(model):
 
 
 if __name__ == "__main__":
-    wandb.login()
+    wandb.login(key=os.environ.get("WANDB_API_KEY"))
     wandb.init(
         project="MedusaRobotics",
         name="mobilenetv2-realistic-underwater",
