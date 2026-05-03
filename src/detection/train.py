@@ -185,12 +185,7 @@ def export_tflite(model):
 
 
 if __name__ == "__main__":
-    wandb.login(key=os.environ.get("WANDB_API_KEY"))
-    wandb.init(
-        project="MedusaRobotics",
-        name="mobilenetv2-realistic-underwater",
-        config=CFG
-    )
+    wandb.init(mode="disabled")
 
     jellyfish_ds, negative_ds = download_dataset()
     build_folder_structure()
