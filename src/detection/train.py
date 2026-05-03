@@ -186,6 +186,7 @@ def export_tflite(model):
 
 
 if __name__ == "__main__":
+    wandb.login()
     wandb.init(
         project="MedusaRobotics",
         name="mobilenetv2-realistic-underwater",
