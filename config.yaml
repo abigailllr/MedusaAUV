@@ -1,0 +1,21 @@
+positive_classes:
+  - Jellyfish
+
+negative_classes:
+  - Fish
+  - Marine invertebrates
+  - Plastic bag
+  - Sea turtle
+  - Squid
+  - Starfish
+  - Crab
+
+max_samples: 500
+img_size: 224
+batch_size: 32
+epochs: 40
+fine_tune_epochs: 20
+threshold: 0.7
+dropout1: 0.5
+dropout2: 0.3
+base_model: MobileNetV2

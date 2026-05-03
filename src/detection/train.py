@@ -2,11 +2,12 @@ import subprocess
 import sys
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
-    "fiftyone", "wandb", "scikit-learn", "seaborn"])
+    "fiftyone", "wandb", "scikit-learn", "seaborn", "pyyaml"])
 
 import os
 import shutil
 import random
+import yaml
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -21,24 +22,18 @@ import wandb
 from wandb.integration.keras import WandbMetricsLogger
 
 BASE = "/content/dataset"
-IMG_SIZE = 224
-BATCH_SIZE = 32
-EPOCHS = 40
-THRESHOLD = 0.7
 SPLITS = ["train", "val", "test"]
 CLASSES = ["jellyfish", "no_jellyfish"]
 
-CONFIG = {
-    "img_size": IMG_SIZE,
-    "batch_size": BATCH_SIZE,
-    "epochs": EPOCHS,
-    "threshold": THRESHOLD,
-    "base_model": "MobileNetV2",
-    "optimizer_phase1": "adam",
-    "optimizer_phase2": "adam_1e-5",
-    "dropout1": 0.5,
-    "dropout2": 0.3,
-}
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../config.yaml")
+
+with open(CONFIG_PATH) as f:
+    CFG = yaml.safe_load(f)
+
+IMG_SIZE = CFG["img_size"]
+BATCH_SIZE = CFG["batch_size"]
+EPOCHS = CFG["epochs"]
+THRESHOLD = CFG["threshold"]
 
 
 def download_dataset():
@@ -46,16 +41,16 @@ def download_dataset():
         "open-images-v7",
         split="train",
         label_types=["classifications"],
-        classes=["Jellyfish"],
-        max_samples=500,
+        classes=CFG["positive_classes"],
+        max_samples=CFG["max_samples"],
         dataset_name="jellyfish_pos"
     )
     negative = foz.load_zoo_dataset(
         "open-images-v7",
         split="train",
         label_types=["classifications"],
-        classes=["Fish", "Marine invertebrates", "Plastic bag", "Sea turtle", "Squid", "Starfish", "Crab"],
-        max_samples=500,
+        classes=CFG["negative_classes"],
+        max_samples=CFG["max_samples"],
         dataset_name="jellyfish_neg"
     )
     return jellyfish, negative
@@ -117,9 +112,9 @@ def build_model():
     base.trainable = False
 
     x = GlobalAveragePooling2D()(base.output)
-    x = Dropout(0.5)(x)
+    x = Dropout(CFG["dropout1"])(x)
     x = Dense(128, activation="relu")(x)
-    x = Dropout(0.3)(x)
+    x = Dropout(CFG["dropout2"])(x)
     output = Dense(1, activation="sigmoid")(x)
 
     model = Model(inputs=base.input, outputs=output)
@@ -191,8 +186,8 @@ def export_tflite(model):
 if __name__ == "__main__":
     wandb.init(
         project="MedusaRobotics",
-        name="mobilenetv2-transfer-finetune",
-        config=CONFIG
+        name="mobilenetv2-realistic-underwater",
+        config=CFG
     )
 
     jellyfish_ds, negative_ds = download_dataset()
@@ -221,7 +216,7 @@ if __name__ == "__main__":
 
     print("\n--- Phase 2: Fine-tuning ---")
     model = fine_tune(model)
-    h2 = model.fit(train_ds, validation_data=val_ds, epochs=20,
+    h2 = model.fit(train_ds, validation_data=val_ds, epochs=CFG["fine_tune_epochs"],
                    callbacks=[early_stop, checkpoint, wandb_logger])
 
     evaluate(model, test_ds)
