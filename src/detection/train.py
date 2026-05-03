@@ -1,3 +1,9 @@
+import subprocess
+import sys
+
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
+    "fiftyone", "wandb", "scikit-learn", "seaborn"])
+
 import os
 import shutil
 import random
