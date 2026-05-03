@@ -4,7 +4,6 @@ __pycache__/
 .env
 venv/
 *.egg-info/
-models/*.tflite
 models/*.h5
 models/*.pt
 data/train/
