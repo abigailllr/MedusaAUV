@@ -11,6 +11,8 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn.metrics import classification_report, confusion_matrix
 import fiftyone.zoo as foz
+import wandb
+from wandb.integration.keras import WandbMetricsLogger
 
 BASE = "/content/dataset"
 IMG_SIZE = 224
@@ -19,6 +21,18 @@ EPOCHS = 40
 THRESHOLD = 0.7
 SPLITS = ["train", "val", "test"]
 CLASSES = ["jellyfish", "no_jellyfish"]
+
+CONFIG = {
+    "img_size": IMG_SIZE,
+    "batch_size": BATCH_SIZE,
+    "epochs": EPOCHS,
+    "threshold": THRESHOLD,
+    "base_model": "MobileNetV2",
+    "optimizer_phase1": "adam",
+    "optimizer_phase2": "adam_1e-5",
+    "dropout1": 0.5,
+    "dropout2": 0.3,
+}
 
 
 def download_dataset():
@@ -124,47 +138,35 @@ def fine_tune(model):
 
 
 def evaluate(model, test_ds):
-    y_true, y_pred = [], []
+    y_true, y_pred, y_scores = [], [], []
     for images, labels in test_ds:
         preds = model.predict(images, verbose=0)
+        y_scores.extend(preds.flatten())
         y_pred.extend((preds > THRESHOLD).astype(int).flatten())
         y_true.extend(labels.numpy())
 
+    report = classification_report(y_true, y_pred,
+              target_names=["no_jellyfish", "jellyfish"], output_dict=True)
     print(classification_report(y_true, y_pred,
           target_names=["no_jellyfish", "jellyfish"]))
 
+    wandb.log({
+        "test_accuracy": report["accuracy"],
+        "test_precision_jellyfish": report["jellyfish"]["precision"],
+        "test_recall_jellyfish": report["jellyfish"]["recall"],
+        "test_f1_jellyfish": report["jellyfish"]["f1-score"],
+    })
+
     cm = confusion_matrix(y_true, y_pred)
-    sns.heatmap(cm, annot=True, fmt="d",
+    fig, ax = plt.subplots()
+    sns.heatmap(cm, annot=True, fmt="d", ax=ax,
                 xticklabels=["No Jellyfish", "Jellyfish"],
                 yticklabels=["No Jellyfish", "Jellyfish"])
-    plt.ylabel("Tatsächlich")
-    plt.xlabel("Vorhergesagt")
-    plt.title("Confusion Matrix")
+    ax.set_ylabel("Tatsächlich")
+    ax.set_xlabel("Vorhergesagt")
+    ax.set_title("Confusion Matrix")
+    wandb.log({"confusion_matrix": wandb.Image(fig)})
     plt.savefig("confusion_matrix.png")
-    plt.show()
-
-
-def plot_history(histories):
-    plt.figure(figsize=(12, 4))
-    acc = histories[0].history["accuracy"] + histories[1].history["accuracy"]
-    val_acc = histories[0].history["val_accuracy"] + histories[1].history["val_accuracy"]
-    loss = histories[0].history["loss"] + histories[1].history["loss"]
-    val_loss = histories[0].history["val_loss"] + histories[1].history["val_loss"]
-
-    plt.subplot(1, 2, 1)
-    plt.plot(acc, label="Train")
-    plt.plot(val_acc, label="Val")
-    plt.title("Accuracy")
-    plt.legend()
-
-    plt.subplot(1, 2, 2)
-    plt.plot(loss, label="Train")
-    plt.plot(val_loss, label="Val")
-    plt.title("Loss")
-    plt.legend()
-
-    plt.tight_layout()
-    plt.savefig("training_curves.png")
     plt.show()
 
 
@@ -174,35 +176,49 @@ def export_tflite(model):
     tflite_model = converter.convert()
     with open("jellyfish_model.tflite", "wb") as f:
         f.write(tflite_model)
-    print(f"Modellgroesse: {len(tflite_model) / 1024:.1f} KB")
+    size_kb = len(tflite_model) / 1024
+    print(f"Modellgroesse: {size_kb:.1f} KB")
+    wandb.log({"model_size_kb": size_kb})
+    wandb.save("jellyfish_model.tflite")
 
 
 if __name__ == "__main__":
+    wandb.init(
+        project="MedusaRobotics",
+        name="mobilenetv2-transfer-finetune",
+        config=CONFIG
+    )
+
     jellyfish_ds, negative_ds = download_dataset()
     build_folder_structure()
     copy_samples(jellyfish_ds, "jellyfish")
     copy_samples(negative_ds, "no_jellyfish")
 
+    counts = {}
     for split in SPLITS:
         for cls in CLASSES:
             count = len(os.listdir(f"{BASE}/{split}/{cls}"))
+            counts[f"{split}_{cls}"] = count
             print(f"{split}/{cls}: {count} Bilder")
+    wandb.log(counts)
 
     train_ds, val_ds, test_ds = load_datasets()
     model = build_model()
 
     early_stop = EarlyStopping(monitor="val_accuracy", patience=5, restore_best_weights=True)
     checkpoint = ModelCheckpoint("best_model.keras", monitor="val_accuracy", save_best_only=True)
+    wandb_logger = WandbMetricsLogger()
 
     print("\n--- Phase 1: Transfer Learning ---")
     h1 = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS,
-                   callbacks=[early_stop, checkpoint])
+                   callbacks=[early_stop, checkpoint, wandb_logger])
 
     print("\n--- Phase 2: Fine-tuning ---")
     model = fine_tune(model)
     h2 = model.fit(train_ds, validation_data=val_ds, epochs=20,
-                   callbacks=[early_stop, checkpoint])
+                   callbacks=[early_stop, checkpoint, wandb_logger])
 
     evaluate(model, test_ds)
-    plot_history([h1, h2])
     export_tflite(model)
+
+    wandb.finish()
