@@ -3,6 +3,8 @@ import sys
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
     "fiftyone", "wandb", "scikit-learn", "seaborn", "pyyaml"])
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
+    "protobuf==3.20.3"])
 
 import os
 import shutil
