@@ -2,6 +2,7 @@ import os
 import shutil
 import random
 import yaml
+import urllib.request
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -11,7 +12,6 @@ from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout, Rand
 from tensorflow.keras.models import Model
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn.metrics import classification_report, confusion_matrix
-import fiftyone.zoo as foz
 import wandb
 from wandb.integration.keras import WandbMetricsLogger
 
@@ -30,46 +30,55 @@ EPOCHS = CFG["epochs"]
 THRESHOLD = CFG["threshold"]
 
 
-def download_dataset():
-    jellyfish = foz.load_zoo_dataset(
-        "open-images-v7",
-        split="train",
-        label_types=["classifications"],
-        classes=CFG["positive_classes"],
-        max_samples=CFG["max_samples"],
-        dataset_name="jellyfish_pos"
-    )
-    negative = foz.load_zoo_dataset(
-        "open-images-v7",
-        split="train",
-        label_types=["classifications"],
-        classes=CFG["negative_classes"],
-        max_samples=CFG["max_samples"],
-        dataset_name="jellyfish_neg"
-    )
-    return jellyfish, negative
+def _fetch_fathomnet(concepts, max_samples):
+    try:
+        from fathomnet.api import images as fn_images
+    except ImportError:
+        raise ImportError("Run: pip install fathomnet")
+
+    all_records = []
+    for concept in concepts:
+        results = fn_images.find_by_concept(concept)
+        print(f"  FathomNet '{concept}': {len(results)} images")
+        all_records.extend(results)
+
+    seen, unique = set(), []
+    for r in all_records:
+        if r.uuid not in seen:
+            seen.add(r.uuid)
+            unique.append(r)
+
+    random.shuffle(unique)
+    return unique[:max_samples]
+
+
+def download_and_split(concepts, class_name, max_samples, ratios=(0.7, 0.15, 0.15)):
+    records = _fetch_fathomnet(concepts, max_samples)
+    n = len(records)
+    train_end = int(n * ratios[0])
+    val_end = train_end + int(n * ratios[1])
+    split_map = {
+        "train": records[:train_end],
+        "val":   records[train_end:val_end],
+        "test":  records[val_end:]
+    }
+    for split, batch in split_map.items():
+        print(f"  Downloading {len(batch)} → {split}/{class_name}")
+        for record in batch:
+            ext = record.url.split(".")[-1].split("?")[0]
+            if ext.lower() not in ["jpg", "jpeg", "png"]:
+                ext = "jpg"
+            dest = f"{BASE}/{split}/{class_name}/{record.uuid}.{ext}"
+            try:
+                urllib.request.urlretrieve(record.url, dest)
+            except Exception as e:
+                print(f"    skip {record.uuid}: {e}")
 
 
 def build_folder_structure():
     for split in SPLITS:
         for cls in CLASSES:
             os.makedirs(f"{BASE}/{split}/{cls}", exist_ok=True)
-
-
-def copy_samples(dataset, class_name, ratios=(0.7, 0.15, 0.15)):
-    paths = [s.filepath for s in dataset]
-    random.shuffle(paths)
-    n = len(paths)
-    train_end = int(n * ratios[0])
-    val_end = train_end + int(n * ratios[1])
-    split_map = {
-        "train": paths[:train_end],
-        "val": paths[train_end:val_end],
-        "test": paths[val_end:]
-    }
-    for split, files in split_map.items():
-        for f in files:
-            shutil.copy(f, f"{BASE}/{split}/{class_name}/")
 
 
 def load_datasets():
@@ -178,19 +187,22 @@ def export_tflite(model):
 
 
 if __name__ == "__main__":
-    wandb.init(mode="disabled")
+    wandb.init(project="medusa-robotics", config=CFG)
 
-    jellyfish_ds, negative_ds = download_dataset()
     build_folder_structure()
-    copy_samples(jellyfish_ds, "jellyfish")
-    copy_samples(negative_ds, "no_jellyfish")
+
+    print("\nDownloading jellyfish images from FathomNet...")
+    download_and_split(CFG["fathomnet_positive_concepts"], "jellyfish", CFG["max_samples"])
+
+    print("\nDownloading negative images from FathomNet...")
+    download_and_split(CFG["fathomnet_negative_concepts"], "no_jellyfish", CFG["max_samples"])
 
     counts = {}
     for split in SPLITS:
         for cls in CLASSES:
             count = len(os.listdir(f"{BASE}/{split}/{cls}"))
             counts[f"{split}_{cls}"] = count
-            print(f"{split}/{cls}: {count} Bilder")
+            print(f"{split}/{cls}: {count} images")
     wandb.log(counts)
 
     train_ds, val_ds, test_ds = load_datasets()
@@ -201,13 +213,13 @@ if __name__ == "__main__":
     wandb_logger = WandbMetricsLogger()
 
     print("\n--- Phase 1: Transfer Learning ---")
-    h1 = model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS,
-                   callbacks=[early_stop, checkpoint, wandb_logger])
+    model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS,
+              callbacks=[early_stop, checkpoint, wandb_logger])
 
     print("\n--- Phase 2: Fine-tuning ---")
     model = fine_tune(model)
-    h2 = model.fit(train_ds, validation_data=val_ds, epochs=CFG["fine_tune_epochs"],
-                   callbacks=[early_stop, checkpoint, wandb_logger])
+    model.fit(train_ds, validation_data=val_ds, epochs=CFG["fine_tune_epochs"],
+              callbacks=[early_stop, checkpoint, wandb_logger])
 
     evaluate(model, test_ds)
     export_tflite(model)

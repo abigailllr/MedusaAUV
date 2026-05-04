@@ -1,14 +1,18 @@
-positive_classes:
-  - Jellyfish
+fathomnet_positive_concepts:
+  - Scyphozoa
+  - Aurelia aurita
+  - Chrysaora
+  - Rhizostoma pulmo
+  - Pelagia noctiluca
+  - Cyanea capillata
 
-negative_classes:
-  - Fish
-  - Marine invertebrates
-  - Plastic bag
-  - Sea turtle
-  - Squid
-  - Starfish
-  - Crab
+fathomnet_negative_concepts:
+  - Sebastes
+  - Octopus
+  - Strongylocentrotus
+  - Porifera
+  - Asteroidea
+  - Crustacea
 
 max_samples: 500
 img_size: 224
@@ -19,3 +23,9 @@ threshold: 0.7
 dropout1: 0.5
 dropout2: 0.3
 base_model: MobileNetV2
+
+model_path: models/jellyfish_model.tflite
+inference_threshold: 0.7
+servo_min_angle: 0
+servo_max_angle: 90
+servo_gpio_pin: 18

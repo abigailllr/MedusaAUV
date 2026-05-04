@@ -1,5 +1,8 @@
-fiftyone
+fathomnet
 wandb
 scikit-learn
 seaborn
 pyyaml
+tensorflow
+numpy
+matplotlib
