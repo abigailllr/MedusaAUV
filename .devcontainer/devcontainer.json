@@ -1,0 +1,40 @@
+{
+  "name": "MedusaRobotics",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "USERNAME": "medusa",
+      "USER_UID": "1000",
+      "USER_GID": "1000"
+    }
+  },
+  "runArgs": [
+    "--network=host",
+    "--privileged"
+  ],
+  "containerEnv": {
+    "ROS_DOMAIN_ID": "42",
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
+    "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/ros2_ws/src/MedusaRobotics,type=bind",
+  "workspaceFolder": "/ros2_ws/src/MedusaRobotics",
+  "postCreateCommand": "cd /ros2_ws && colcon build --symlink-install 2>/dev/null || true",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-iot.vscode-ros",
+        "ms-python.python",
+        "ms-python.pylint",
+        "twxs.cmake",
+        "ms-vscode.cmake-tools"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3",
+        "ros.distro": "jazzy"
+      }
+    }
+  },
+  "remoteUser": "medusa"
+}
