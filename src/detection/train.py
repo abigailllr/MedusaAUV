@@ -1,9 +1,8 @@
 import os
-import shutil
 import random
+from typing import Any
 import yaml
 import urllib.request
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
@@ -149,7 +148,7 @@ def evaluate(model, test_ds):
         y_pred.extend((preds > THRESHOLD).astype(int).flatten())
         y_true.extend(labels.numpy())
 
-    report = classification_report(y_true, y_pred,
+    report: Any = classification_report(y_true, y_pred,
               target_names=["no_jellyfish", "jellyfish"], output_dict=True)
     print(classification_report(y_true, y_pred,
           target_names=["no_jellyfish", "jellyfish"]))
