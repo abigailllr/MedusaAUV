@@ -2,8 +2,8 @@
 <package format="3">
   <name>medusa_auv</name>
   <version>0.1.0</version>
-  <description>AUV nodes for MedusaRobotics — camera, inference, servo, telemetry</description>
-  <maintainer email="abigail@medusarobotics.dev">Abigail</maintainer>
+  <description>AUV nodes for MedusaAUV: camera, inference, propulsion, behavior, mapping, telemetry, VR bridge, recorder</description>
+  <maintainer email="abigail@medusaauv.dev">Abigail</maintainer>
   <license>MIT</license>
 
   <depend>rclpy</depend>

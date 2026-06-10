@@ -7,7 +7,7 @@ import rerun as rr
 class TelemetryNode(Node):
     def __init__(self):
         super().__init__("telemetry_node")
-        rr.init("medusa_robotics", spawn=True)
+        rr.init("medusa_auv", spawn=True)
 
         self.create_subscription(JellyfishDetection, "/auv/detection", self.on_detection, 10)
         self.create_subscription(PropulsionState, "/auv/propulsion/state", self.on_propulsion, 10)

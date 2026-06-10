@@ -201,7 +201,7 @@ def export_tflite(model):
 
 
 if __name__ == "__main__":
-    wandb.init(project="medusa-robotics", config=CFG)
+    wandb.init(project="medusa-auv", config=CFG)
 
     build_folder_structure()
 
