@@ -9,5 +9,7 @@ models/*.pt
 data/train/
 data/val/
 data/test/
+data/sessions/
+data/bloom_map.geojson
 .DS_Store
 *.log

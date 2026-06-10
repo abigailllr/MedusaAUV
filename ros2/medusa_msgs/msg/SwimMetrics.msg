@@ -1,0 +1,6 @@
+std_msgs/Header header
+float32 pulse_frequency
+float32 estimated_speed
+float32 body_lengths_per_sec
+float32 cost_of_transport
+float32 thrust_proxy

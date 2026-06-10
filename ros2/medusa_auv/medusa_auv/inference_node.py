@@ -3,7 +3,9 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from medusa_msgs.msg import JellyfishDetection
+from collections import deque
 import numpy as np
+import cv2
 import tflite_runtime.interpreter as tflite
 import yaml
 import os
@@ -22,6 +24,8 @@ class InferenceNode(Node):
         self.frame_id = 0
         self.threshold = CFG["inference_threshold"]
         self.img_size = CFG["img_size"]
+        self.window = CFG.get("smoothing_window", 12)
+        self.conf_history = deque(maxlen=self.window)
 
         self.interpreter = tflite.Interpreter(model_path=CFG["model_path"])
         self.interpreter.allocate_tensors()
@@ -33,27 +37,36 @@ class InferenceNode(Node):
         )
         self.publisher = self.create_publisher(JellyfishDetection, "/auv/detection", 10)
 
+    def white_balance(self, img):
+        means = img.reshape(-1, 3).mean(axis=0)
+        gray = means.mean()
+        scaled = img * (gray / (means + 1e-6))
+        return np.clip(scaled, 0.0, 255.0)
+
     def on_image(self, msg):
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
-        import cv2
-        resized = cv2.resize(frame, (self.img_size, self.img_size))
-        tensor = np.expand_dims(resized.astype(np.float32) / 255.0, axis=0)
+        balanced = self.white_balance(frame.astype(np.float32))
+        resized = cv2.resize(balanced, (self.img_size, self.img_size))
+        tensor = np.expand_dims(resized / 255.0, axis=0)
 
         self.interpreter.set_tensor(self.input_details[0]["index"], tensor)
         self.interpreter.invoke()
         confidence = float(self.interpreter.get_tensor(self.output_details[0]["index"])[0][0])
 
+        self.conf_history.append(confidence)
+        smoothed = float(np.mean(self.conf_history))
+
         detection = JellyfishDetection()
         detection.header.stamp = self.get_clock().now().to_msg()
-        detection.confidence = confidence
-        detection.jellyfish_detected = confidence >= self.threshold
+        detection.confidence = smoothed
+        detection.jellyfish_detected = smoothed >= self.threshold
         detection.frame_id = self.frame_id
         self.frame_id += 1
 
         self.publisher.publish(detection)
 
         self.get_logger().info(
-            f"confidence={confidence:.3f} detected={detection.jellyfish_detected}"
+            f"raw={confidence:.3f} smoothed={smoothed:.3f} detected={detection.jellyfish_detected}"
         )
 
 

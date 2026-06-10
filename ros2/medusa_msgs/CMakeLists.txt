@@ -10,7 +10,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/JellyfishDetection.msg"
   "msg/JellyfishSighting.msg"
   "msg/AUVMissionCommand.msg"
-  "msg/ServoState.msg"
+  "msg/PropulsionState.msg"
+  "msg/SwimMetrics.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

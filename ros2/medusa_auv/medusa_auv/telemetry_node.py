@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from medusa_msgs.msg import JellyfishDetection, ServoState
+from medusa_msgs.msg import JellyfishDetection, PropulsionState, SwimMetrics
 import rerun as rr
 
 
@@ -10,15 +10,22 @@ class TelemetryNode(Node):
         rr.init("medusa_robotics", spawn=True)
 
         self.create_subscription(JellyfishDetection, "/auv/detection", self.on_detection, 10)
-        self.create_subscription(ServoState, "/auv/servo_state", self.on_servo, 10)
+        self.create_subscription(PropulsionState, "/auv/propulsion/state", self.on_propulsion, 10)
+        self.create_subscription(SwimMetrics, "/auv/swim_metrics", self.on_metrics, 10)
 
     def on_detection(self, msg):
         rr.log("auv/detection/confidence", rr.Scalar(msg.confidence))
         rr.log("auv/detection/jellyfish", rr.Scalar(float(msg.jellyfish_detected)))
 
-    def on_servo(self, msg):
-        rr.log("auv/servo/angle", rr.Scalar(msg.current_angle))
-        rr.log("auv/servo/active", rr.Scalar(float(msg.mechanism_active)))
+    def on_propulsion(self, msg):
+        rr.log("auv/propulsion/frequency", rr.Scalar(msg.pulse_frequency))
+        rr.log("auv/propulsion/power_w", rr.Scalar(msg.power_w))
+        rr.log("auv/propulsion/mode", rr.Scalar(float(msg.mode)))
+
+    def on_metrics(self, msg):
+        rr.log("auv/metrics/estimated_speed", rr.Scalar(msg.estimated_speed))
+        rr.log("auv/metrics/body_lengths_per_sec", rr.Scalar(msg.body_lengths_per_sec))
+        rr.log("auv/metrics/cost_of_transport", rr.Scalar(msg.cost_of_transport))
 
 
 def main():

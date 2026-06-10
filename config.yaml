@@ -26,6 +26,46 @@ base_model: MobileNetV2
 
 model_path: models/jellyfish_model.tflite
 inference_threshold: 0.7
+smoothing_window: 12
 servo_min_angle: 0
 servo_max_angle: 90
 servo_gpio_pin: 18
+
+bell_gpio_pin: 12
+bell_pca_channel: 0
+pwm_frequency: 50
+bell_neutral_deg: 45
+bell_amplitude_deg: 45
+bell_pulse_init_hz: 0.5
+bell_pulse_min_hz: 0.25
+bell_pulse_max_hz: 1.0
+control_rate_hz: 50
+actuator_idle_w: 0.5
+actuator_stroke_j: 0.4
+
+tuner_step_hz: 0.05
+tuner_interval_s: 4.0
+body_length_m: 0.21
+vehicle_mass_kg: 0.512
+imu_speed_gain: 0.1
+sim_natural_hz: 0.6
+sim_bandwidth_hz: 0.2
+
+observe_threshold: 0.9
+behavior_patience: 20
+
+relay_enabled: true
+dive_duration_s: 120.0
+surface_duration_s: 20.0
+surface_pulse_hz: 1.0
+
+map_cell_deg: 0.0001
+map_output_path: data/bloom_map.geojson
+map_save_interval_s: 10.0
+bloom_low_count: 3
+bloom_high_count: 10
+
+vr_bridge_host: "0.0.0.0"
+vr_bridge_port: 8765
+vr_bridge_rate_hz: 10.0
+record_dir: data/sessions

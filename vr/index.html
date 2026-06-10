@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Medusa VR</title>
+<style>
+  body { margin: 0; font-family: -apple-system, system-ui, sans-serif; background: #04111f; color: #cfeaff; }
+  #hud { position: fixed; top: 12px; left: 12px; font-size: 14px; line-height: 1.6; }
+  #mode { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 10px 18px; border-radius: 999px; border: none; background: #0a84ff; color: white; font-size: 15px; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="hud">connecting…</div>
+<button id="mode">cycle mode</button>
+<script type="module">
+import * as THREE from 'three';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+
+const params = new URLSearchParams(location.search);
+const videoTopic = params.get('topic') || '/auv/camera/image_raw';
+const directHost = params.get('host');
+const videoUrl = directHost
+  ? `http://${directHost}:${params.get('video') || '8080'}/stream?topic=${videoTopic}&type=mjpeg`
+  : `/stream?topic=${videoTopic}&type=mjpeg`;
+const wsUrl = directHost
+  ? `ws://${directHost}:${params.get('ws') || '8765'}/`
+  : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+
+const MODE_NAMES = ['IDLE', 'SEARCH', 'APPROACH', 'OBSERVE', 'SURFACE'];
+let state = {};
+let modeIndex = 1;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+document.body.appendChild(VRButton.createButton(renderer));
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x04111f);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 1.6, 0);
+
+scene.add(new THREE.HemisphereLight(0x88bbff, 0x041018, 1.2));
+
+const img = new Image();
+img.crossOrigin = 'anonymous';
+img.src = videoUrl;
+const videoTexture = new THREE.Texture(img);
+const screen = new THREE.Mesh(
+  new THREE.PlaneGeometry(2.4, 1.35),
+  new THREE.MeshBasicMaterial({ map: videoTexture })
+);
+screen.position.set(0, 1.6, -3);
+scene.add(screen);
+
+const panelCanvas = document.createElement('canvas');
+panelCanvas.width = 1024;
+panelCanvas.height = 512;
+const ctx = panelCanvas.getContext('2d');
+const panelTexture = new THREE.CanvasTexture(panelCanvas);
+const panel = new THREE.Mesh(
+  new THREE.PlaneGeometry(1.6, 0.8),
+  new THREE.MeshBasicMaterial({ map: panelTexture, transparent: true })
+);
+panel.position.set(-2.6, 1.6, -2.4);
+panel.rotation.y = 0.5;
+scene.add(panel);
+
+function severityColor(s) {
+  return ['#39d98a', '#ffcc00', '#ff4d4d'][s] || '#39d98a';
+}
+
+function drawPanel() {
+  ctx.clearRect(0, 0, panelCanvas.width, panelCanvas.height);
+  ctx.fillStyle = 'rgba(4, 22, 40, 0.85)';
+  ctx.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
+  ctx.fillStyle = '#cfeaff';
+  ctx.font = 'bold 46px system-ui';
+  ctx.fillText('MEDUSA', 40, 70);
+  ctx.font = '34px system-ui';
+  const lines = [
+    `link: ${state.surfaced ? 'LIVE (surfaced)' : 'buffering (diving)'}`,
+    `mode: ${MODE_NAMES[state.mode || 0]}`,
+    `jellyfish: ${state.jellyfish_detected ? 'YES' : 'no'}  (${(state.confidence || 0).toFixed(2)})`,
+    `frequency: ${(state.pulse_frequency || 0).toFixed(2)} Hz`,
+    `speed: ${(state.estimated_speed || 0).toFixed(2)} m/s`,
+    `body lengths/s: ${(state.body_lengths_per_sec || 0).toFixed(2)}`,
+    `cost of transport: ${(state.cost_of_transport || 0).toFixed(2)}`,
+    `power: ${(state.power_w || 0).toFixed(2)} W`,
+    `density: ${(state.density_estimate || 0).toFixed(0)}`,
+  ];
+  lines.forEach((line, i) => ctx.fillText(line, 40, 140 + i * 44));
+  ctx.fillStyle = severityColor(state.bloom_severity || 0);
+  ctx.fillText(`bloom severity: ${state.bloom_severity || 0}`, 40, 140 + lines.length * 44);
+  panelTexture.needsUpdate = true;
+}
+
+let socket;
+function connect() {
+  socket = new WebSocket(wsUrl);
+  socket.onopen = () => { document.getElementById('hud').textContent = 'connected'; };
+  socket.onclose = () => { setTimeout(connect, 1500); };
+  socket.onmessage = (event) => {
+    state = JSON.parse(event.data);
+    document.getElementById('hud').textContent =
+      `${MODE_NAMES[state.mode || 0]} | conf ${(state.confidence || 0).toFixed(2)} | ${(state.pulse_frequency || 0).toFixed(2)} Hz`;
+  };
+}
+connect();
+
+function cycleMode() {
+  modeIndex = modeIndex >= 3 ? 1 : modeIndex + 1;
+  if (socket && socket.readyState === 1) socket.send(JSON.stringify({ mode: modeIndex }));
+}
+document.getElementById('mode').addEventListener('click', cycleMode);
+
+const controller = renderer.xr.getController(0);
+controller.addEventListener('selectstart', cycleMode);
+scene.add(controller);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+renderer.setAnimationLoop(() => {
+  if (img.complete && img.naturalWidth > 0) videoTexture.needsUpdate = true;
+  drawPanel();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

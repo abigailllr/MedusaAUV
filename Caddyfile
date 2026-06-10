@@ -1,0 +1,17 @@
+{
+	auto_https disable_redirects
+}
+
+https://:8443 {
+	tls internal
+	handle /ws* {
+		reverse_proxy localhost:8765
+	}
+	handle /stream* {
+		reverse_proxy localhost:8080
+	}
+	handle {
+		root * ./vr
+		file_server
+	}
+}

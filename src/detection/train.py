@@ -80,6 +80,20 @@ def build_folder_structure():
             os.makedirs(f"{BASE}/{split}/{cls}", exist_ok=True)
 
 
+def white_balance(images):
+    means = tf.reduce_mean(images, axis=[1, 2], keepdims=True)
+    gray = tf.reduce_mean(means, axis=-1, keepdims=True)
+    scaled = images * (gray / (means + 1e-6))
+    return tf.clip_by_value(scaled, 0.0, 255.0)
+
+
+def color_jitter(images):
+    x = images / 255.0
+    x = tf.image.random_hue(x, 0.05)
+    x = tf.image.random_saturation(x, 0.7, 1.3)
+    return tf.clip_by_value(x, 0.0, 1.0) * 255.0
+
+
 def load_datasets():
     normalize = tf.keras.layers.Rescaling(1.0 / 255)
 
@@ -88,13 +102,14 @@ def load_datasets():
         RandomRotation(0.2),
         RandomZoom(0.2),
         RandomBrightness(0.2),
+        tf.keras.layers.RandomContrast(0.2),
     ])
 
     def prep_train(ds):
-        return ds.map(lambda x, y: (normalize(augment(x, training=True)), y))
+        return ds.map(lambda x, y: (normalize(color_jitter(augment(white_balance(x), training=True))), y))
 
     def prep(ds):
-        return ds.map(lambda x, y: (normalize(x), y))
+        return ds.map(lambda x, y: (normalize(white_balance(x)), y))
 
     train_ds = prep_train(tf.keras.utils.image_dataset_from_directory(
         f"{BASE}/train", image_size=(IMG_SIZE, IMG_SIZE), batch_size=BATCH_SIZE

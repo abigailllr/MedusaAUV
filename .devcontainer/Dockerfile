@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-cv-bridge \
     ros-jazzy-sensor-msgs \
     ros-jazzy-geometry-msgs \
+    ros-jazzy-std-msgs \
+    ros-jazzy-web-video-server \
     git \
     wget \
     curl \
@@ -33,7 +35,12 @@ RUN pip3 install --break-system-packages \
     scikit-learn \
     seaborn \
     matplotlib \
-    tensorflow
+    tensorflow \
+    websockets
+
+RUN ARCH=$(dpkg --print-architecture) \
+    && curl -fsSL "https://caddyserver.com/api/download?os=linux&arch=${ARCH}" -o /usr/local/bin/caddy \
+    && chmod +x /usr/local/bin/caddy
 
 RUN rosdep update
 
