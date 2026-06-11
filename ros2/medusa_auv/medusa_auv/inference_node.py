@@ -38,7 +38,10 @@ class InferenceNode(Node):
         self.dataset_min = CFG.get("dataset_min_confidence", 0.8)
         self.dataset_dir = os.path.join(os.path.dirname(__file__), "../../../", CFG.get("dataset_dir", "data/dataset"))
 
-        self.interpreter = tflite.Interpreter(model_path=CFG["model_path"])
+        model_path = os.path.join(os.path.dirname(__file__), "../../../", CFG["model_path"])
+        if not os.path.exists(model_path):
+            self.get_logger().error(f"model not found: {model_path}")
+        self.interpreter = tflite.Interpreter(model_path=model_path)
         self.interpreter.allocate_tensors()
         self.input_details = self.interpreter.get_input_details()
         self.output_details = self.interpreter.get_output_details()
@@ -98,7 +101,8 @@ class InferenceNode(Node):
         self.capture_dataset(frame, smoothed)
 
         self.get_logger().info(
-            f"model={confidence:.3f} fused={fused:.3f} smoothed={smoothed:.3f} detected={detection.jellyfish_detected}"
+            f"model={confidence:.3f} fused={fused:.3f} smoothed={smoothed:.3f} detected={detection.jellyfish_detected}",
+            throttle_duration_sec=2.0,
         )
 
 

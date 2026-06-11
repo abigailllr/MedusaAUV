@@ -90,7 +90,8 @@ class ResonanceTunerNode(Node):
         msg.thrust_proxy = float(j)
         self.metrics_pub.publish(msg)
         self.get_logger().info(
-            f"freq={self.freq:.3f}Hz speed={speed:.3f}m/s cot={cot:.3f}"
+            f"freq={self.freq:.3f}Hz speed={speed:.3f}m/s cot={cot:.3f}",
+            throttle_duration_sec=2.0,
         )
 
 

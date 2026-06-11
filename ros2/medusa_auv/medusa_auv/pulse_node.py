@@ -43,7 +43,7 @@ class PulseNode(Node):
         out = Float32()
         out.data = confidence
         self.publisher.publish(out)
-        self.get_logger().info(f"pulse_confidence={confidence:.3f}")
+        self.get_logger().info(f"pulse_confidence={confidence:.3f}", throttle_duration_sec=2.0)
 
 
 def main():
