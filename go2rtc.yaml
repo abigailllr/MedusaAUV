@@ -1,0 +1,11 @@
+streams:
+  auv: ffmpeg:device?video=0&video_size=640x480#video=h264
+
+api:
+  listen: ":1984"
+
+rtsp:
+  listen: ":8554"
+
+webrtc:
+  listen: ":8555"

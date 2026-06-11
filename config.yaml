@@ -27,9 +27,11 @@ base_model: MobileNetV2
 model_path: models/jellyfish_model.tflite
 inference_threshold: 0.7
 smoothing_window: 12
-servo_min_angle: 0
-servo_max_angle: 90
-servo_gpio_pin: 18
+inference_stride: 2
+inference_stride_search: 4
+
+camera_source: 0
+camera_fps: 20
 
 bell_gpio_pin: 12
 bell_pca_channel: 0
@@ -58,6 +60,12 @@ relay_enabled: true
 dive_duration_s: 120.0
 surface_duration_s: 20.0
 surface_pulse_hz: 1.0
+
+battery_full_v: 8.4
+battery_low_v: 6.6
+battery_empty_v: 6.0
+battery_check_interval_s: 2.0
+sim_battery_minutes: 10.0
 
 map_cell_deg: 0.0001
 map_output_path: data/bloom_map.geojson

@@ -10,6 +10,9 @@ https://:8443 {
 	handle /stream* {
 		reverse_proxy localhost:8080
 	}
+	handle_path /go2rtc/* {
+		reverse_proxy localhost:1984
+	}
 	handle {
 		root * ./vr
 		file_server

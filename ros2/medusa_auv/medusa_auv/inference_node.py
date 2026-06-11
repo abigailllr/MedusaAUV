@@ -2,7 +2,8 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from medusa_msgs.msg import JellyfishDetection
+from std_msgs.msg import UInt8
+from medusa_msgs.msg import JellyfishDetection, PropulsionState
 from collections import deque
 import numpy as np
 import cv2
@@ -26,6 +27,10 @@ class InferenceNode(Node):
         self.img_size = CFG["img_size"]
         self.window = CFG.get("smoothing_window", 12)
         self.conf_history = deque(maxlen=self.window)
+        self.stride = CFG.get("inference_stride", 1)
+        self.stride_search = CFG.get("inference_stride_search", self.stride)
+        self.mode = PropulsionState.SEARCH
+        self.skip = 0
 
         self.interpreter = tflite.Interpreter(model_path=CFG["model_path"])
         self.interpreter.allocate_tensors()
@@ -35,7 +40,16 @@ class InferenceNode(Node):
         self.subscription = self.create_subscription(
             Image, "/auv/camera/image_raw", self.on_image, 10
         )
+        self.create_subscription(UInt8, "/auv/behavior/mode", self.on_mode, 10)
         self.publisher = self.create_publisher(JellyfishDetection, "/auv/detection", 10)
+
+    def on_mode(self, msg):
+        self.mode = msg.data
+
+    def current_stride(self):
+        if self.mode == PropulsionState.SEARCH:
+            return max(self.stride_search, 1)
+        return max(self.stride, 1)
 
     def white_balance(self, img):
         means = img.reshape(-1, 3).mean(axis=0)
@@ -44,6 +58,11 @@ class InferenceNode(Node):
         return np.clip(scaled, 0.0, 255.0)
 
     def on_image(self, msg):
+        self.skip += 1
+        if self.skip < self.current_stride():
+            return
+        self.skip = 0
+
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
         balanced = self.white_balance(frame.astype(np.float32))
         resized = cv2.resize(balanced, (self.img_size, self.img_size))

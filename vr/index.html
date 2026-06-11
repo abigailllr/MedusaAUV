@@ -34,6 +34,9 @@ const videoUrl = directHost
 const wsUrl = directHost
   ? `ws://${directHost}:${params.get('ws') || '8765'}/`
   : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+const webrtcUrl = directHost
+  ? `http://${directHost}:${params.get('go2rtc') || '1984'}/api/stream.mp4?src=auv`
+  : `/go2rtc/api/stream.mp4?src=auv`;
 
 const MODE_NAMES = ['IDLE', 'SEARCH', 'APPROACH', 'OBSERVE', 'SURFACE'];
 let state = {};
@@ -53,13 +56,32 @@ camera.position.set(0, 1.6, 0);
 
 scene.add(new THREE.HemisphereLight(0x88bbff, 0x041018, 1.2));
 
+const videoEl = document.createElement('video');
+videoEl.muted = true;
+videoEl.autoplay = true;
+videoEl.playsInline = true;
+videoEl.crossOrigin = 'anonymous';
+videoEl.src = webrtcUrl;
+const liveTexture = new THREE.VideoTexture(videoEl);
+
 const img = new Image();
 img.crossOrigin = 'anonymous';
 img.src = videoUrl;
-const videoTexture = new THREE.Texture(img);
+const fallbackTexture = new THREE.Texture(img);
+
+const screenMaterial = new THREE.MeshBasicMaterial({ map: liveTexture });
+let usingFallback = false;
+function useFallback() {
+  if (usingFallback) return;
+  usingFallback = true;
+  screenMaterial.map = fallbackTexture;
+}
+videoEl.addEventListener('error', useFallback);
+videoEl.play().catch(useFallback);
+
 const screen = new THREE.Mesh(
   new THREE.PlaneGeometry(2.4, 1.35),
-  new THREE.MeshBasicMaterial({ map: videoTexture })
+  screenMaterial
 );
 screen.position.set(0, 1.6, -3);
 scene.add(screen);
@@ -136,7 +158,7 @@ window.addEventListener('resize', () => {
 });
 
 renderer.setAnimationLoop(() => {
-  if (img.complete && img.naturalWidth > 0) videoTexture.needsUpdate = true;
+  if (usingFallback && img.complete && img.naturalWidth > 0) fallbackTexture.needsUpdate = true;
   drawPanel();
   renderer.render(scene, camera);
 });

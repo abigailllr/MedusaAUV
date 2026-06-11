@@ -12,6 +12,7 @@ NODES = [
     "telemetry_node",
     "vr_bridge_node",
     "recorder_node",
+    "battery_node",
 ]
 
 

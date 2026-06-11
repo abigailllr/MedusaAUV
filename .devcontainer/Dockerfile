@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-geometry-msgs \
     ros-jazzy-std-msgs \
     ros-jazzy-web-video-server \
+    ffmpeg \
     git \
     wget \
     curl \
@@ -40,7 +41,9 @@ RUN pip3 install --break-system-packages \
 
 RUN ARCH=$(dpkg --print-architecture) \
     && curl -fsSL "https://caddyserver.com/api/download?os=linux&arch=${ARCH}" -o /usr/local/bin/caddy \
-    && chmod +x /usr/local/bin/caddy
+    && chmod +x /usr/local/bin/caddy \
+    && curl -fsSL "https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_${ARCH}" -o /usr/local/bin/go2rtc \
+    && chmod +x /usr/local/bin/go2rtc
 
 RUN rosdep update
 

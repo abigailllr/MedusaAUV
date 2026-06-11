@@ -24,6 +24,7 @@ setup(
             "mapping_node          = medusa_auv.mapping_node:main",
             "vr_bridge_node        = medusa_auv.vr_bridge_node:main",
             "recorder_node         = medusa_auv.recorder_node:main",
+            "battery_node          = medusa_auv.battery_node:main",
         ],
     },
 )
