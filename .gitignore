@@ -4,6 +4,10 @@ __pycache__/
 .env
 venv/
 *.egg-info/
+build/
+install/
+log/
+.pytest_cache/
 models/*.h5
 models/*.pt
 data/train/
