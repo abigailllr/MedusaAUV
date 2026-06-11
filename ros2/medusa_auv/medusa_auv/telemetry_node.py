@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import Float32
 from medusa_msgs.msg import JellyfishDetection, PropulsionState, SwimMetrics
 import rerun as rr
 
@@ -12,10 +13,26 @@ class TelemetryNode(Node):
         self.create_subscription(JellyfishDetection, "/auv/detection", self.on_detection, 10)
         self.create_subscription(PropulsionState, "/auv/propulsion/state", self.on_propulsion, 10)
         self.create_subscription(SwimMetrics, "/auv/swim_metrics", self.on_metrics, 10)
+        self.create_subscription(Float32, "/auv/depth", self.on_depth, 10)
+        self.create_subscription(Float32, "/auv/temperature", self.on_temperature, 10)
+        self.create_subscription(Float32, "/auv/bloom_forecast", self.on_forecast, 10)
+        self.create_subscription(Float32, "/auv/pulse_confidence", self.on_pulse, 10)
 
     def on_detection(self, msg):
         rr.log("auv/detection/confidence", rr.Scalar(msg.confidence))
         rr.log("auv/detection/jellyfish", rr.Scalar(float(msg.jellyfish_detected)))
+
+    def on_depth(self, msg):
+        rr.log("auv/depth", rr.Scalar(msg.data))
+
+    def on_temperature(self, msg):
+        rr.log("auv/environment/temperature", rr.Scalar(msg.data))
+
+    def on_forecast(self, msg):
+        rr.log("auv/bloom_forecast", rr.Scalar(msg.data))
+
+    def on_pulse(self, msg):
+        rr.log("auv/detection/pulse_confidence", rr.Scalar(msg.data))
 
     def on_propulsion(self, msg):
         rr.log("auv/propulsion/frequency", rr.Scalar(msg.pulse_frequency))

@@ -13,6 +13,14 @@ NODES = [
     "vr_bridge_node",
     "recorder_node",
     "battery_node",
+    "depth_node",
+    "gps_node",
+    "environment_node",
+    "prediction_node",
+    "leak_node",
+    "mission_node",
+    "pulse_node",
+    "light_node",
 ]
 
 

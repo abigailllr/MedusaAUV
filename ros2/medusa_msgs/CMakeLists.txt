@@ -12,6 +12,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/AUVMissionCommand.msg"
   "msg/PropulsionState.msg"
   "msg/SwimMetrics.msg"
+  "msg/MissionStatus.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

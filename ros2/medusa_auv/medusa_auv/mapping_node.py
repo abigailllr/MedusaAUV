@@ -5,9 +5,10 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import NavSatFix
 from medusa_msgs.msg import JellyfishDetection, JellyfishSighting
+from medusa_auv.algorithms import bloom_severity
 
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../../../config.yaml")
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../../config.yaml")
 
 with open(CONFIG_PATH) as f:
     CFG = yaml.safe_load(f)
@@ -20,7 +21,7 @@ class MappingNode(Node):
         self.low = CFG["bloom_low_count"]
         self.high = CFG["bloom_high_count"]
         self.out_path = os.path.join(
-            os.path.dirname(__file__), "../../../../", CFG["map_output_path"]
+            os.path.dirname(__file__), "../../../", CFG["map_output_path"]
         )
         self.grid = {}
         self.last_fix = None
@@ -36,13 +37,6 @@ class MappingNode(Node):
 
     def key(self, lat, lon):
         return (round(lat / self.cell), round(lon / self.cell))
-
-    def severity(self, count):
-        if count >= self.high:
-            return 2
-        if count >= self.low:
-            return 1
-        return 0
 
     def on_detection(self, msg):
         if not msg.jellyfish_detected or self.last_fix is None:
@@ -61,7 +55,7 @@ class MappingNode(Node):
         sighting.longitude = float(lon)
         sighting.confidence = float(msg.confidence)
         sighting.density_estimate = float(cell["count"])
-        sighting.bloom_severity = self.severity(cell["count"])
+        sighting.bloom_severity = bloom_severity(cell["count"], self.low, self.high)
         self.sighting_pub.publish(sighting)
 
     def save_map(self):
@@ -73,7 +67,7 @@ class MappingNode(Node):
                 "properties": {
                     "count": cell["count"],
                     "mean_confidence": cell["conf_sum"] / max(cell["count"], 1),
-                    "bloom_severity": self.severity(cell["count"]),
+                    "bloom_severity": bloom_severity(cell["count"], self.low, self.high),
                 },
             })
         feature_collection = {"type": "FeatureCollection", "features": features}

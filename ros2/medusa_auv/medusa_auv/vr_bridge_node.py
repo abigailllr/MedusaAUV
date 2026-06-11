@@ -5,12 +5,12 @@ import threading
 import yaml
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import UInt8, Bool
+from std_msgs.msg import UInt8, Bool, Float32
 from medusa_msgs.msg import JellyfishDetection, PropulsionState, SwimMetrics, JellyfishSighting
 import websockets
 
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../../../config.yaml")
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../../config.yaml")
 
 with open(CONFIG_PATH) as f:
     CFG = yaml.safe_load(f)
@@ -38,6 +38,12 @@ class VRBridgeNode(Node):
             "density_estimate": 0.0,
             "bloom_severity": 0,
             "surfaced": False,
+            "depth": 0.0,
+            "temperature": 0.0,
+            "light": 0.0,
+            "bloom_forecast": 0.0,
+            "leak": False,
+            "pulse_confidence": 0.0,
         }
 
         self.create_subscription(JellyfishDetection, "/auv/detection", self.on_detection, 10)
@@ -45,7 +51,14 @@ class VRBridgeNode(Node):
         self.create_subscription(SwimMetrics, "/auv/swim_metrics", self.on_metrics, 10)
         self.create_subscription(JellyfishSighting, "/auv/sighting", self.on_sighting, 10)
         self.create_subscription(Bool, "/auv/transmit_window", self.on_window, 10)
+        self.create_subscription(Float32, "/auv/depth", self.on_depth, 10)
+        self.create_subscription(Float32, "/auv/temperature", self.on_temperature, 10)
+        self.create_subscription(Float32, "/auv/light", self.on_light, 10)
+        self.create_subscription(Float32, "/auv/bloom_forecast", self.on_forecast, 10)
+        self.create_subscription(Bool, "/auv/leak", self.on_leak, 10)
+        self.create_subscription(Float32, "/auv/pulse_confidence", self.on_pulse, 10)
         self.mode_pub = self.create_publisher(UInt8, "/auv/behavior/mode", 10)
+        self.teleop_pub = self.create_publisher(Float32, "/auv/teleop", 10)
 
         threading.Thread(target=self.run_server, daemon=True).start()
         self.get_logger().info(f"vr bridge on ws://{self.host}:{self.port}")
@@ -78,6 +91,24 @@ class VRBridgeNode(Node):
     def on_window(self, msg):
         self.update(surfaced=bool(msg.data))
 
+    def on_depth(self, msg):
+        self.update(depth=float(msg.data))
+
+    def on_temperature(self, msg):
+        self.update(temperature=float(msg.data))
+
+    def on_light(self, msg):
+        self.update(light=float(msg.data))
+
+    def on_forecast(self, msg):
+        self.update(bloom_forecast=float(msg.data))
+
+    def on_leak(self, msg):
+        self.update(leak=bool(msg.data))
+
+    def on_pulse(self, msg):
+        self.update(pulse_confidence=float(msg.data))
+
     def snapshot(self):
         with self.lock:
             return json.dumps(self.state)
@@ -91,6 +122,10 @@ class VRBridgeNode(Node):
             msg = UInt8()
             msg.data = int(data["mode"])
             self.mode_pub.publish(msg)
+        if "control" in data:
+            msg = Float32()
+            msg.data = float(data["control"])
+            self.teleop_pub.publish(msg)
 
     async def handler(self, ws, path=None):
         self.clients.add(ws)

@@ -6,7 +6,7 @@ from rclpy.node import Node
 from medusa_msgs.msg import JellyfishDetection, PropulsionState, SwimMetrics, JellyfishSighting
 
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../../../config.yaml")
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../../config.yaml")
 
 with open(CONFIG_PATH) as f:
     CFG = yaml.safe_load(f)
@@ -16,7 +16,7 @@ class RecorderNode(Node):
     def __init__(self):
         super().__init__("recorder_node")
         session_dir = os.path.join(
-            os.path.dirname(__file__), "../../../../", CFG.get("record_dir", "data/sessions")
+            os.path.dirname(__file__), "../../../", CFG.get("record_dir", "data/sessions")
         )
         os.makedirs(session_dir, exist_ok=True)
         stamp = self.get_clock().now().nanoseconds

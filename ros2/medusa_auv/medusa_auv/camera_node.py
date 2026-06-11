@@ -7,7 +7,7 @@ from cv_bridge import CvBridge
 import cv2
 
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../../../config.yaml")
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../../config.yaml")
 
 with open(CONFIG_PATH) as f:
     CFG = yaml.safe_load(f)

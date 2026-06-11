@@ -113,8 +113,13 @@ function drawPanel() {
   ctx.font = '34px system-ui';
   const lines = [
     `link: ${state.surfaced ? 'LIVE (surfaced)' : 'buffering (diving)'}`,
+    `${state.leak ? 'LEAK WARNING' : 'hull ok'}`,
+    `depth: ${(state.depth || 0).toFixed(2)} m`,
+    `water: ${(state.temperature || 0).toFixed(1)} C   light: ${(state.light || 0).toFixed(2)}`,
+    `bloom forecast: ${(state.bloom_forecast || 0).toFixed(2)}`,
     `mode: ${MODE_NAMES[state.mode || 0]}`,
     `jellyfish: ${state.jellyfish_detected ? 'YES' : 'no'}  (${(state.confidence || 0).toFixed(2)})`,
+    `pulse cue: ${(state.pulse_confidence || 0).toFixed(2)}`,
     `frequency: ${(state.pulse_frequency || 0).toFixed(2)} Hz`,
     `speed: ${(state.estimated_speed || 0).toFixed(2)} m/s`,
     `body lengths/s: ${(state.body_lengths_per_sec || 0).toFixed(2)}`,
@@ -151,6 +156,14 @@ const controller = renderer.xr.getController(0);
 controller.addEventListener('selectstart', cycleMode);
 scene.add(controller);
 
+const teleopEuler = new THREE.Euler();
+let teleopFrame = 0;
+function sendTeleop() {
+  if (!socket || socket.readyState !== 1) return;
+  teleopEuler.setFromQuaternion(controller.quaternion, 'XYZ');
+  socket.send(JSON.stringify({ control: -teleopEuler.x }));
+}
+
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -159,6 +172,8 @@ window.addEventListener('resize', () => {
 
 renderer.setAnimationLoop(() => {
   if (usingFallback && img.complete && img.naturalWidth > 0) fallbackTexture.needsUpdate = true;
+  teleopFrame += 1;
+  if (renderer.xr.isPresenting && teleopFrame % 6 === 0) sendTeleop();
   drawPanel();
   renderer.render(scene, camera);
 });

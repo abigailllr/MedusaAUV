@@ -22,13 +22,24 @@ fine_tune_epochs: 20
 threshold: 0.7
 dropout1: 0.5
 dropout2: 0.3
-base_model: MobileNetV2
 
 model_path: models/jellyfish_model.tflite
 inference_threshold: 0.7
 smoothing_window: 12
 inference_stride: 2
 inference_stride_search: 4
+
+pulse_window_frames: 64
+pulse_band_min_hz: 0.25
+pulse_band_max_hz: 1.0
+
+fusion_model_weight: 0.7
+dataset_capture: false
+dataset_min_confidence: 0.8
+dataset_dir: data/dataset
+
+lure_gpio_pin: 24
+lure_modes: [3]
 
 camera_source: 0
 camera_fps: 20
@@ -67,6 +78,12 @@ battery_empty_v: 6.0
 battery_check_interval_s: 2.0
 sim_battery_minutes: 10.0
 
+operating_depth_max_m: 5.0
+search_depth_m: 1.5
+ascent_rate_mps: 0.1
+descent_rate_mps: 0.05
+depth_update_hz: 5.0
+
 map_cell_deg: 0.0001
 map_output_path: data/bloom_map.geojson
 map_save_interval_s: 10.0
@@ -76,4 +93,37 @@ bloom_high_count: 10
 vr_bridge_host: "0.0.0.0"
 vr_bridge_port: 8765
 vr_bridge_rate_hz: 10.0
+vr_https_port: 8443
 record_dir: data/sessions
+
+teleop_forward_threshold: 0.3
+teleop_back_threshold: -0.3
+teleop_timeout_s: 2.0
+
+home_lat: 47.36
+home_lon: 8.54
+gps_wander_deg: 0.0002
+gps_update_hz: 1.0
+
+water_temp_c: 24.0
+water_temp_swing_c: 3.0
+day_cycle_s: 600.0
+environment_update_hz: 1.0
+
+optimal_temp_min_c: 25.0
+optimal_temp_max_c: 27.0
+temp_falloff_c: 5.0
+density_reference: 10.0
+forecast_update_hz: 1.0
+
+leak_gpio_pin: 23
+leak_check_interval_s: 1.0
+
+waypoints:
+  - [47.360, 8.540]
+  - [47.361, 8.541]
+  - [47.359, 8.542]
+waypoint_arrival_m: 3.0
+mission_update_hz: 1.0
+
+sightings_output_path: data/sightings_gbif.csv
