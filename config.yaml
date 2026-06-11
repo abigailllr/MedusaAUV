@@ -58,6 +58,7 @@ actuator_stroke_j: 0.4
 
 tuner_step_hz: 0.05
 tuner_interval_s: 4.0
+imu_update_hz: 50.0
 body_length_m: 0.21
 vehicle_mass_kg: 0.512
 imu_speed_gain: 0.1

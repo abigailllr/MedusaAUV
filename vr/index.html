@@ -117,6 +117,7 @@ function drawPanel() {
     `depth: ${(state.depth || 0).toFixed(2)} m`,
     `water: ${(state.temperature || 0).toFixed(1)} C   light: ${(state.light || 0).toFixed(2)}`,
     `bloom forecast: ${(state.bloom_forecast || 0).toFixed(2)}`,
+    `waypoint: ${(state.waypoint_distance || 0).toFixed(1)} m`,
     `mode: ${MODE_NAMES[state.mode || 0]}`,
     `jellyfish: ${state.jellyfish_detected ? 'YES' : 'no'}  (${(state.confidence || 0).toFixed(2)})`,
     `pulse cue: ${(state.pulse_confidence || 0).toFixed(2)}`,

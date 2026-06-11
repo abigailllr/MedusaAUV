@@ -33,6 +33,7 @@ setup(
             "mission_node          = medusa_auv.mission_node:main",
             "pulse_node            = medusa_auv.pulse_node:main",
             "light_node            = medusa_auv.light_node:main",
+            "imu_node              = medusa_auv.imu_node:main",
         ],
     },
 )

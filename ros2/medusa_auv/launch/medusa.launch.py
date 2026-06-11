@@ -21,6 +21,7 @@ NODES = [
     "mission_node",
     "pulse_node",
     "light_node",
+    "imu_node",
 ]
 
 

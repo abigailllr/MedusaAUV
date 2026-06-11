@@ -6,7 +6,7 @@ import yaml
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import UInt8, Bool, Float32
-from medusa_msgs.msg import JellyfishDetection, PropulsionState, SwimMetrics, JellyfishSighting
+from medusa_msgs.msg import JellyfishDetection, PropulsionState, SwimMetrics, JellyfishSighting, MissionStatus
 import websockets
 
 
@@ -44,6 +44,7 @@ class VRBridgeNode(Node):
             "bloom_forecast": 0.0,
             "leak": False,
             "pulse_confidence": 0.0,
+            "waypoint_distance": 0.0,
         }
 
         self.create_subscription(JellyfishDetection, "/auv/detection", self.on_detection, 10)
@@ -57,6 +58,7 @@ class VRBridgeNode(Node):
         self.create_subscription(Float32, "/auv/bloom_forecast", self.on_forecast, 10)
         self.create_subscription(Bool, "/auv/leak", self.on_leak, 10)
         self.create_subscription(Float32, "/auv/pulse_confidence", self.on_pulse, 10)
+        self.create_subscription(MissionStatus, "/auv/mission_status", self.on_mission, 10)
         self.mode_pub = self.create_publisher(UInt8, "/auv/behavior/mode", 10)
         self.teleop_pub = self.create_publisher(Float32, "/auv/teleop", 10)
 
@@ -108,6 +110,9 @@ class VRBridgeNode(Node):
 
     def on_pulse(self, msg):
         self.update(pulse_confidence=float(msg.data))
+
+    def on_mission(self, msg):
+        self.update(waypoint_distance=float(msg.distance_m))
 
     def snapshot(self):
         with self.lock:

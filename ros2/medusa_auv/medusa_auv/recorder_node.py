@@ -3,7 +3,7 @@ import json
 import yaml
 import rclpy
 from rclpy.node import Node
-from medusa_msgs.msg import JellyfishDetection, PropulsionState, SwimMetrics, JellyfishSighting
+from medusa_msgs.msg import JellyfishDetection, PropulsionState, SwimMetrics, JellyfishSighting, AUVMissionCommand
 
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "../../../config.yaml")
@@ -27,8 +27,12 @@ class RecorderNode(Node):
         self.create_subscription(PropulsionState, "/auv/propulsion/state", self.on_propulsion, 10)
         self.create_subscription(SwimMetrics, "/auv/swim_metrics", self.on_metrics, 10)
         self.create_subscription(JellyfishSighting, "/auv/sighting", self.on_sighting, 10)
+        self.create_subscription(AUVMissionCommand, "/auv/mission", self.on_mission, 10)
 
         self.get_logger().info(f"recording to {self.path}")
+
+    def on_mission(self, msg):
+        self.write("mission", {"command": int(msg.command)})
 
     def write(self, topic, data):
         record = {"t": self.get_clock().now().nanoseconds, "topic": topic, "data": data}
