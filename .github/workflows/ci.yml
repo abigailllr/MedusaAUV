@@ -12,5 +12,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install numpy pytest
+      - run: pip install numpy pytest pyflakes
+      - run: python -m compileall -q ros2/medusa_auv/medusa_auv connect.py export_sightings.py src/detection/train.py
+      - run: python -m pyflakes ros2/medusa_auv/medusa_auv connect.py export_sightings.py
       - run: pytest ros2/medusa_auv/test -q
