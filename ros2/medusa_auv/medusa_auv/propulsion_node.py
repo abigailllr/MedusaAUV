@@ -29,7 +29,9 @@ class PropulsionNode(Node):
     def __init__(self):
         super().__init__("propulsion_node")
         self.pin = CFG["bell_gpio_pin"]
-        self.channel = CFG.get("bell_pca_channel", 0)
+        self.left_channels = CFG.get("bell_left_channels", [0, 1, 2, 3])
+        self.right_channels = CFG.get("bell_right_channels", [4, 5, 6, 7])
+        self.steer = 0.0
         self.neutral = CFG["bell_neutral_deg"]
         self.amplitude = CFG["bell_amplitude_deg"]
         self.frequency = CFG["bell_pulse_init_hz"]
@@ -54,6 +56,7 @@ class PropulsionNode(Node):
 
         self.create_subscription(Float32, "/auv/propulsion/freq_cmd", self.on_freq, 10)
         self.create_subscription(UInt8, "/auv/behavior/mode", self.on_mode, 10)
+        self.create_subscription(Float32, "/auv/steer", self.on_steer, 10)
         self.state_pub = self.create_publisher(PropulsionState, "/auv/propulsion/state", 10)
 
         self.create_timer(1.0 / self.rate, self.tick)
@@ -64,6 +67,9 @@ class PropulsionNode(Node):
 
     def on_mode(self, msg):
         self.mode = msg.data
+
+    def on_steer(self, msg):
+        self.steer = max(-1.0, min(1.0, msg.data))
 
     def mode_amplitude(self):
         if self.mode == PropulsionState.OBSERVE:
@@ -81,16 +87,21 @@ class PropulsionNode(Node):
         self.phase += 2.0 * math.pi * self.effective_frequency() / self.rate
         if self.phase > 2.0 * math.pi:
             self.phase -= 2.0 * math.pi
+        contraction = 0.5 * (1.0 - math.cos(self.phase))
         amp = self.mode_amplitude()
-        angle = self.neutral + 0.5 * amp * (1.0 - math.cos(self.phase))
-        self.apply_angle(angle)
-
-    def apply_angle(self, angle):
-        angle = max(0.0, min(180.0, angle))
         if self.kit is not None:
-            self.kit.servo[self.channel].angle = angle
+            left = self.neutral + amp * (1.0 - max(0.0, self.steer)) * contraction
+            right = self.neutral + amp * (1.0 - max(0.0, -self.steer)) * contraction
+            self.set_servos(self.left_channels, left)
+            self.set_servos(self.right_channels, right)
         elif self.pwm is not None:
+            angle = max(0.0, min(180.0, self.neutral + amp * contraction))
             self.pwm.ChangeDutyCycle(2.5 + (angle / 180.0) * 10.0)
+
+    def set_servos(self, channels, angle):
+        angle = max(0.0, min(180.0, angle))
+        for channel in channels:
+            self.kit.servo[channel].angle = angle
 
     def current_power(self):
         amp_norm = self.mode_amplitude() / max(self.amplitude, 1e-6)

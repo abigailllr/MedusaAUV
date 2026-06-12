@@ -162,7 +162,7 @@ let teleopFrame = 0;
 function sendTeleop() {
   if (!socket || socket.readyState !== 1) return;
   teleopEuler.setFromQuaternion(controller.quaternion, 'XYZ');
-  socket.send(JSON.stringify({ control: -teleopEuler.x }));
+  socket.send(JSON.stringify({ control: -teleopEuler.x, steer: teleopEuler.y }));
 }
 
 window.addEventListener('resize', () => {

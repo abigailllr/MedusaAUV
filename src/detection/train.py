@@ -29,49 +29,57 @@ EPOCHS = CFG["epochs"]
 THRESHOLD = CFG["threshold"]
 
 
-def _fetch_fathomnet(concepts, max_samples):
-    try:
-        from fathomnet.api import images as fn_images
-    except ImportError:
-        raise ImportError("Run: pip install fathomnet")
+def _fetch_inaturalist(taxa, max_samples):
+    import json
+    from urllib.parse import quote
+    per_taxon = max(1, max_samples // len(taxa))
+    urls = []
+    for taxon in taxa:
+        taxon_urls = []
+        page = 1
+        while len(taxon_urls) < per_taxon:
+            query = f"taxon_name={quote(taxon)}&photos=true&quality_grade=research&per_page=200&page={page}"
+            try:
+                with urllib.request.urlopen(f"https://api.inaturalist.org/v1/observations?{query}") as response:
+                    results = json.load(response).get("results", [])
+            except Exception as e:
+                print(f"  iNaturalist '{taxon}': {e}")
+                break
+            if not results:
+                break
+            for obs in results:
+                for photo in obs.get("photos", []):
+                    url = photo.get("url", "").replace("square", "medium")
+                    if url:
+                        taxon_urls.append(url)
+            page += 1
+        print(f"  iNaturalist '{taxon}': {len(taxon_urls)} photos")
+        urls.extend(taxon_urls[:per_taxon])
+    random.shuffle(urls)
+    return urls[:max_samples]
 
-    all_records = []
-    for concept in concepts:
-        results = fn_images.find_by_concept(concept)
-        print(f"  FathomNet '{concept}': {len(results)} images")
-        all_records.extend(results)
 
-    seen, unique = set(), []
-    for r in all_records:
-        if r.uuid not in seen:
-            seen.add(r.uuid)
-            unique.append(r)
-
-    random.shuffle(unique)
-    return unique[:max_samples]
-
-
-def download_and_split(concepts, class_name, max_samples, ratios=(0.7, 0.15, 0.15)):
-    records = _fetch_fathomnet(concepts, max_samples)
-    n = len(records)
+def download_and_split(taxa, class_name, max_samples, ratios=(0.7, 0.15, 0.15)):
+    urls = _fetch_inaturalist(taxa, max_samples)
+    n = len(urls)
     train_end = int(n * ratios[0])
     val_end = train_end + int(n * ratios[1])
     split_map = {
-        "train": records[:train_end],
-        "val":   records[train_end:val_end],
-        "test":  records[val_end:]
+        "train": urls[:train_end],
+        "val":   urls[train_end:val_end],
+        "test":  urls[val_end:],
     }
     for split, batch in split_map.items():
         print(f"  Downloading {len(batch)} → {split}/{class_name}")
-        for record in batch:
-            ext = record.url.split(".")[-1].split("?")[0]
-            if ext.lower() not in ["jpg", "jpeg", "png"]:
+        for i, url in enumerate(batch):
+            ext = url.split(".")[-1].split("?")[0].lower()
+            if ext not in ["jpg", "jpeg", "png"]:
                 ext = "jpg"
-            dest = f"{BASE}/{split}/{class_name}/{record.uuid}.{ext}"
+            dest = f"{BASE}/{split}/{class_name}/{class_name}_{i}.{ext}"
             try:
-                urllib.request.urlretrieve(record.url, dest)
+                urllib.request.urlretrieve(url, dest)
             except Exception as e:
-                print(f"    skip {record.uuid}: {e}")
+                print(f"    skip {i}: {e}")
 
 
 def build_folder_structure():
@@ -205,11 +213,11 @@ if __name__ == "__main__":
 
     build_folder_structure()
 
-    print("\nDownloading jellyfish images from FathomNet...")
-    download_and_split(CFG["fathomnet_positive_concepts"], "jellyfish", CFG["max_samples"])
+    print("\nDownloading jellyfish images from iNaturalist...")
+    download_and_split(CFG["inaturalist_positive_taxa"], "jellyfish", CFG["max_samples"])
 
-    print("\nDownloading negative images from FathomNet...")
-    download_and_split(CFG["fathomnet_negative_concepts"], "no_jellyfish", CFG["max_samples"])
+    print("\nDownloading negative images from iNaturalist...")
+    download_and_split(CFG["inaturalist_negative_taxa"], "no_jellyfish", CFG["max_samples"])
 
     counts = {}
     for split in SPLITS:

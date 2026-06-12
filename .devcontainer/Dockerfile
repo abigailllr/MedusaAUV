@@ -29,7 +29,6 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install --break-system-packages \
     tflite-runtime \
     wandb \
-    fathomnet \
     rerun-sdk \
     pyyaml \
     opencv-python \
@@ -37,7 +36,9 @@ RUN pip3 install --break-system-packages \
     seaborn \
     matplotlib \
     tensorflow \
-    websockets
+    websockets \
+    pyserial \
+    pynmea2
 
 RUN ARCH=$(dpkg --print-architecture) \
     && curl -fsSL "https://caddyserver.com/api/download?os=linux&arch=${ARCH}" -o /usr/local/bin/caddy \

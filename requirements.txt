@@ -1,4 +1,3 @@
-fathomnet
 wandb
 scikit-learn
 seaborn

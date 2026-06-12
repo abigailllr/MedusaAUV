@@ -58,3 +58,20 @@ def band_ratio(motion, fps, band_min, band_max):
 
 def fuse_confidence(model_conf, pulse_conf, model_weight):
     return max(0.0, min(1.0, model_weight * model_conf + (1.0 - model_weight) * pulse_conf))
+
+
+def confusion_counts(y_true, y_pred):
+    tp = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 1)
+    tn = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 0)
+    fp = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 1)
+    fn = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 0)
+    return tp, tn, fp, fn
+
+
+def precision_recall_f1(y_true, y_pred):
+    tp, tn, fp, fn = confusion_counts(y_true, y_pred)
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    accuracy = (tp + tn) / max(len(y_true), 1)
+    return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1}

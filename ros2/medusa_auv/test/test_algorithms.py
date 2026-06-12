@@ -71,6 +71,35 @@ def test_band_ratio_bounds():
     assert 0.0 <= r <= 1.0
 
 
+def test_confusion_counts():
+    y_true = [1, 1, 0, 0, 1]
+    y_pred = [1, 0, 0, 1, 1]
+    assert a.confusion_counts(y_true, y_pred) == (2, 1, 1, 1)
+
+
+def test_precision_recall_f1_perfect():
+    m = a.precision_recall_f1([1, 0, 1, 0], [1, 0, 1, 0])
+    assert m["accuracy"] == 1.0
+    assert m["precision"] == 1.0
+    assert m["recall"] == 1.0
+    assert m["f1"] == 1.0
+
+
+def test_precision_recall_f1_values():
+    m = a.precision_recall_f1([1, 1, 0, 0], [1, 0, 1, 0])
+    assert m["precision"] == 0.5
+    assert m["recall"] == 0.5
+    assert m["f1"] == 0.5
+    assert m["accuracy"] == 0.5
+
+
+def test_precision_recall_f1_empty_pred():
+    m = a.precision_recall_f1([1, 1, 0], [0, 0, 0])
+    assert m["precision"] == 0.0
+    assert m["recall"] == 0.0
+    assert m["f1"] == 0.0
+
+
 def test_gray_world_neutralizes():
     img = np.zeros((4, 4, 3), dtype=float)
     img[:, :, 0] = 50.0

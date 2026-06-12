@@ -61,6 +61,7 @@ class VRBridgeNode(Node):
         self.create_subscription(MissionStatus, "/auv/mission_status", self.on_mission, 10)
         self.mode_pub = self.create_publisher(UInt8, "/auv/behavior/mode", 10)
         self.teleop_pub = self.create_publisher(Float32, "/auv/teleop", 10)
+        self.steer_pub = self.create_publisher(Float32, "/auv/steer", 10)
 
         threading.Thread(target=self.run_server, daemon=True).start()
         self.get_logger().info(f"vr bridge on ws://{self.host}:{self.port}")
@@ -131,6 +132,10 @@ class VRBridgeNode(Node):
             msg = Float32()
             msg.data = float(data["control"])
             self.teleop_pub.publish(msg)
+        if "steer" in data:
+            msg = Float32()
+            msg.data = float(data["steer"])
+            self.steer_pub.publish(msg)
 
     async def handler(self, ws, path=None):
         self.clients.add(ws)
